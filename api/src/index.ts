@@ -36,14 +36,23 @@ app.get("/feedback-conversations", async (req: Request, res: Response) => {
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const filter = req.query.filter as string || 'all';
     const skip = (page - 1) * limit;
 
+    const matchStage: any = { feedback: { $exists: true } };
+
+    if (filter === 'thumbsUp') {
+      matchStage["feedback.rating"] = "thumbsUp";
+    } else if (filter === 'thumbsDown') {
+      matchStage["feedback.rating"] = "thumbsDown";
+    } else if (filter === 'unanswered') {
+      matchStage["feedback.tag"] = "not_matched";
+    }
+
     const pipeline = [
-      // 1. Match messages with feedback
+      // 1. Match messages with feedback and filter if necessary
       {
-        $match: {
-          feedback: { $exists: true }
-        }
+        $match: matchStage
       },
 
       // 2. Group by conversationId to get unique conversations
@@ -216,7 +225,7 @@ app.get("/feedback-conversations", async (req: Request, res: Response) => {
 
     // Get total count for pagination
     const countPipeline = [
-      { $match: { feedback: { $exists: true } } },
+      { $match: matchStage },
       { $group: { _id: "$conversationId" } },
       { $count: "total" }
     ];

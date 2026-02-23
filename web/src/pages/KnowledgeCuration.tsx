@@ -24,7 +24,8 @@ const getMessageText = (content?: string | ContentBlock[]): string => {
 };
 
 export const KnowledgeCuration: React.FC = () => {
-    const { conversations, loading: loadingConversations, page, totalPages, setPage, refresh } = useConversations();
+    const [filter, setFilter] = useState<'all' | 'thumbsUp' | 'thumbsDown' | 'unanswered'>('all');
+    const { conversations, loading: loadingConversations, page, totalPages, setPage, refresh } = useConversations(20, filter);
     const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
     const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
     const [goldenKnowledge, setGoldenKnowledge] = useState<GoldenKnowledge[]>([]);
@@ -102,14 +103,47 @@ export const KnowledgeCuration: React.FC = () => {
             {/* 1. Conversation Sidebar */}
             <div className="w-80 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-brand-card flex flex-col transition-colors">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-brand-surface/20">
-                    <h2 className="font-semibold text-sm flex items-center gap-2">
+                    <h2 className="font-semibold text-sm flex items-center gap-2 mb-4">
                         <MessageSquare className="w-4 h-4 text-brand-primary" />
                         Feedback Inbox
                     </h2>
+
+                    {/* Filter Tabs */}
+                    <div className="flex flex-wrap gap-1 p-1 bg-gray-100 dark:bg-brand-surface rounded-lg">
+                        {[
+                            { id: 'all', label: 'All', icon: MessageSquare },
+                            { id: 'thumbsUp', label: 'Positive', icon: ThumbsUp, color: 'text-green-500' },
+                            { id: 'thumbsDown', label: 'Negative', icon: ThumbsDown, color: 'text-red-500' },
+                            { id: 'unanswered', label: 'Unanswered', icon: AlertCircle, color: 'text-orange-500' }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setFilter(tab.id as any);
+                                    setPage(1);
+                                    setSelectedConvId(null);
+                                }}
+                                className={clsx(
+                                    "flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-md transition-all text-[10px] font-medium border",
+                                    filter === tab.id
+                                        ? "bg-white dark:bg-brand-card shadow-sm border-gray-200 dark:border-gray-700 text-brand-primary"
+                                        : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                )}
+                            >
+                                <tab.icon className={clsx("w-3.5 h-3.5 mb-1", tab.color && filter === tab.id ? tab.color : "")} />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     {loadingConversations ? (
                         <div className="p-8 text-center animate-pulse text-gray-400">Loading inbox...</div>
+                    ) : conversations.length === 0 ? (
+                        <div className="p-12 text-center text-gray-400">
+                            <Circle className="w-8 h-8 mb-2 mx-auto opacity-20" />
+                            <p className="text-sm">No items found</p>
+                        </div>
                     ) : (
                         conversations.map((conv) => (
                             <div
@@ -133,12 +167,24 @@ export const KnowledgeCuration: React.FC = () => {
                                     <span>{conv.messages.length} messages</span>
                                     <span>{format(new Date(conv.latestFeedbackDate || conv.updatedAt), 'MMM d, h:mm a')}</span>
                                 </div>
-                                {/* Show thumbs down marker if present */}
-                                {conv.messages.some(m => m.feedback?.rating === 'thumbsDown') && (
-                                    <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
-                                        <AlertCircle size={10} /> Needs Curation
-                                    </div>
-                                )}
+                                {/* Feedback Markers */}
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    {conv.messages.some(m => m.feedback?.rating === 'thumbsDown') && (
+                                        <div className="inline-flex items-center gap-1 text-[9px] text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded border border-red-100 dark:border-red-900/30">
+                                            <ThumbsDown size={10} /> Needs Fix
+                                        </div>
+                                    )}
+                                    {conv.messages.some(m => m.feedback?.tag === 'not_matched') && (
+                                        <div className="inline-flex items-center gap-1 text-[9px] text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0.5 rounded border border-orange-100 dark:border-orange-900/30">
+                                            <AlertCircle size={10} /> Unmatched
+                                        </div>
+                                    )}
+                                    {conv.messages.some(m => m.feedback?.rating === 'thumbsUp') && (
+                                        <div className="inline-flex items-center gap-1 text-[9px] text-green-600 bg-green-50 dark:bg-green-900/20 px-1.5 py-0.5 rounded border border-green-100 dark:border-green-900/30">
+                                            <ThumbsUp size={10} /> Helpful
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}

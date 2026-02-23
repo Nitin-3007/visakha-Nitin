@@ -1,0 +1,3 @@
+src/pages/DatabaseManagement.tsx(5,5): error TS6133: 'Table' is declared but its value is never read.
+src/pages/DatabaseManagement.tsx(7,5): error TS6133: 'Pencil' is declared but its value is never read.
+src/pages/DatabaseManagement.tsx(8,5): error TS6133: 'Trash2' is declared but its value is never read.
