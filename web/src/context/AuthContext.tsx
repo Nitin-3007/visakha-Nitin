@@ -56,13 +56,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const isSuperAdmin = user?.role === 'super_admin' || user?.email === 'nitinsankararunsankar@gmail.com';
 
-    // Replace with your actual Google Client ID from environment variables
-    // Ideally, use import.meta.env.VITE_GOOGLE_CLIENT_ID
-    // For now, fail gracefully if missing
+    // Check Google Client ID from environment variables
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
+    useEffect(() => {
+        if (!googleClientId || googleClientId === 'your-client-id.apps.googleusercontent.com') {
+            console.error('❌ CRITICAL ERROR: VITE_GOOGLE_CLIENT_ID is missing or using placeholder value in .env file!');
+        }
+    }, [googleClientId]);
+
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-brand-dark">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+            </div>
+        );
     }
 
     return (

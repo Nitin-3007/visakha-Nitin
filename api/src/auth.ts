@@ -3,10 +3,27 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { connectDB } from './db.js';
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // In prod, use a strong secret env var
+// Initialize these lazily to ensure environment variables are loaded
+let _client: OAuth2Client | null = null;
 
-const client = new OAuth2Client(CLIENT_ID);
+function getGoogleClient() {
+    const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+    if (!CLIENT_ID || CLIENT_ID === 'your-client-id.apps.googleusercontent.com') {
+        console.warn('⚠️ WARNING: GOOGLE_CLIENT_ID is not set or using placeholder value.');
+    }
+    if (!_client) {
+        _client = new OAuth2Client(CLIENT_ID);
+    }
+    return _client;
+}
+
+function getJwtSecret() {
+    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    if (secret === 'your-secret-key') {
+        console.warn('⚠️ WARNING: JWT_SECRET is using the default insecure key!');
+    }
+    return secret;
+}
 
 export interface AuthRequest extends Request {
     user?: {
@@ -38,35 +55,44 @@ export async function googleLogin(req: Request, res: Response) {
     if (!token) return res.status(400).json({ error: 'Token required' });
 
     try {
+        const client = getGoogleClient();
         const ticket = await client.verifyIdToken({
             idToken: token,
-            audience: CLIENT_ID || '',
+            audience: process.env.GOOGLE_CLIENT_ID || '',
         });
         const payload = ticket.getPayload();
-        if (!payload || !payload.email) return res.status(400).json({ error: 'Invalid token' });
+
+        if (!payload || !payload.email) {
+            console.error('Auth Error: Invalid payload from Google');
+            return res.status(400).json({ error: 'Invalid token' });
+        }
 
         const email = payload.email;
+        console.log(`Login attempt for: ${email}`);
+
         const db = await connectDB();
 
         // Check if user is an admin/moderator
         const user = await db.collection('admin_users').findOne({ email });
 
         if (!user) {
+            console.warn(`Access Denied: ${email} is not in admin_users collection`);
             return res.status(403).json({ error: 'Access denied. Not an authorized user.' });
         }
 
         // Generate JWT
         const authToken = jwt.sign(
             { email: user.email, role: user.role },
-            JWT_SECRET,
+            getJwtSecret(),
             { expiresIn: '24h' }
         );
 
+        console.log(`Auth Successful: ${email} (${user.role})`);
         res.json({ token: authToken, user: { email: user.email, role: user.role } });
 
-    } catch (error) {
-        console.error('Auth Error:', error);
-        res.status(401).json({ error: 'Authentication failed' });
+    } catch (error: any) {
+        console.error('Auth Error during Google verification:', error.message || error);
+        res.status(401).json({ error: 'Authentication failed', details: error.message });
     }
 }
 
@@ -94,7 +120,7 @@ export async function devLogin(req: Request, res: Response) {
 
         const authToken = jwt.sign(
             { email: user.email, role: user.role },
-            JWT_SECRET,
+            getJwtSecret(),
             { expiresIn: '24h' }
         );
 
@@ -113,7 +139,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
 
     if (!token) return res.sendStatus(401);
 
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    jwt.verify(token, getJwtSecret(), (err: any, user: any) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();

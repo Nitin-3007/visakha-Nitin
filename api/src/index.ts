@@ -550,31 +550,22 @@ app.get("/conversations/export", async (req: Request, res: Response) => {
 import fs from 'fs';
 
 const staticPath = path.join(__dirname, "../../web/dist");
-console.log("Static files path:", staticPath);
-console.log("index.html exists:", fs.existsSync(path.join(staticPath, "index.html")));
-
 // Serve static files from the React app
 app.use(express.static(staticPath));
 
 // Explicit route for root
 app.get("/", (req: Request, res: Response) => {
-  console.log("Root route hit");
-  console.log("Request URL:", req.url);
   const indexPath = path.join(staticPath, "index.html");
-  console.log("Attempting to serve:", indexPath);
 
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath, (err) => {
       if (err) {
         console.error("Error sending file:", err);
         res.status(500).send("Error sending index.html");
-      } else {
-        console.log("Sent index.html successfully");
       }
     });
   } else {
-    console.error("index.html not found during request");
-    res.status(404).send("index.html not found at " + indexPath);
+    res.status(404).send("index.html not found");
   }
 });
 
@@ -589,26 +580,9 @@ app.post("/auth/google", googleLogin);
 app.post("/auth/dev-login", devLogin);
 
 // Admin Routes (Protected)
-// Admin Routes (Protected)
-app.use("/admin", (req, res, next) => {
-  console.log(`[API] Admin route hit: ${req.method} ${req.path}`);
-  next();
-});
-
-app.post("/admin/moderators", (req, res, next) => {
-  console.log("[API] POST /admin/moderators hit");
-  next();
-}, authenticateToken, requireSuperAdmin, addModerator);
-
-app.delete("/admin/moderators", (req, res, next) => {
-  console.log("[API] DELETE /admin/moderators hit");
-  next();
-}, authenticateToken, requireSuperAdmin, removeModerator);
-
-app.get("/admin/moderators", (req, res, next) => {
-  console.log("[API] GET /admin/moderators hit");
-  next();
-}, authenticateToken, requireSuperAdmin, getModerators);
+app.post("/admin/moderators", authenticateToken, requireSuperAdmin, addModerator);
+app.delete("/admin/moderators", authenticateToken, requireSuperAdmin, removeModerator);
+app.get("/admin/moderators", authenticateToken, requireSuperAdmin, getModerators);
 
 // Knowledge Curation Routes
 // 1. Get Negative Feedback (The "Raw Data Dump" Source)
