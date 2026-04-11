@@ -36,7 +36,7 @@ export const DatabaseManagement = () => {
         setError(null);
         if (!silent) console.log(`Fetching data for collection: ${selectedCollection}, page: ${page}`);
         try {
-            const response = await fetch(`http://localhost:3000/admin/db/${selectedCollection}?page=${page}&limit=${limit}`, {
+            const response = await fetch(`/admin/db/${selectedCollection}?page=${page}&limit=${limit}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -123,8 +123,8 @@ export const DatabaseManagement = () => {
             }
 
             const url = editingItem
-                ? `http://localhost:3000/admin/db/${selectedCollection}/${editingItem._id}`
-                : `http://localhost:3000/admin/db/${selectedCollection}`;
+                ? `/admin/db/${selectedCollection}/${editingItem._id}`
+                : `/admin/db/${selectedCollection}`;
 
             const method = editingItem ? 'PUT' : 'POST';
 
@@ -152,7 +152,7 @@ export const DatabaseManagement = () => {
         if (!window.confirm('Are you sure you want to delete this document?')) return;
 
         try {
-            const response = await fetch(`http://localhost:3000/admin/db/${selectedCollection}/${id}`, {
+            const response = await fetch(`/admin/db/${selectedCollection}/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

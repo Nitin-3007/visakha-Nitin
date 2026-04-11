@@ -1,0 +1,32 @@
+{
+  "_id": "695d13b610ccba2882fb2781",
+  "user": "6955671b12be5251d4ee7f2a",
+  "messageId": "334f6af2-fda5-4b70-bf2a-5076543c5b2e",
+  "__v": 0,
+  "_meiliIndex": false,
+  "attachments": [],
+  "content": [
+    {
+      "type": "think",
+      "think": "\nOkay, the user said \"Hi\". According to the instructions, I need to check if the query is one of the allowed greetings. The list includes \"Hi\", \"Hello\", \"Hey\", etc. Since \"Hi\" is in the list, I should not call any functions. Instead, respond politely. The user might just be testing or starting a conversation. I should greet them back and offer help with farming queries. Keep it friendly and open-ended. Make sure to mention that I'm here to help with Indian agriculture. No tool calls needed here.\n"
+    },
+    {
+      "type": "text",
+      "text": "\n\nHello! How can I assist you today? I'm here to help with farming-related queries in India. 😊"
+    }
+  ],
+  "conversationId": "c98ac56c-b03c-48dd-8eca-fa14cbaa12a3",
+  "createdAt": "2026-01-06T13:52:54.143Z",
+  "endpoint": "vLLM",
+  "error": false,
+  "expiredAt": null,
+  "iconURL": "https://storage.googleapis.com/annam-temp-images/logo-icon.png",
+  "isCreatedByUser": false,
+  "model": "Qwen/Qwen3-30B-A3B",
+  "parentMessageId": "f6b2b3d1-3beb-4df6-87e5-d7d3ce55bc6b",
+  "sender": "AjraSakha",
+  "text": "",
+  "tokenCount": 26,
+  "unfinished": false,
+  "updatedAt": "2026-01-06T13:52:54.143Z"
+}

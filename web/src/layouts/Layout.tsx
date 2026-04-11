@@ -18,7 +18,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const location = useLocation();
-    const { logout, isSuperAdmin, user } = useAuth();
+    const { logout, user, isSuperAdmin, isViewer } = useAuth();
 
     React.useEffect(() => {
         document.title = "Alchemist";
@@ -26,11 +26,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
     const navigation = [
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-        ...(isSuperAdmin ? [
-            { name: 'Team', href: '/team', icon: Users },
+        { name: 'Team', href: '/team', icon: Users },
+        ...(!isViewer ? [
             { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
             { name: 'FAQs', href: '/faqs', icon: HelpCircle }
-        ] : []),
+        ] : [])
     ];
 
     const handleExport = async () => {
@@ -84,13 +84,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </nav>
 
                 <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-                    <button
-                        onClick={handleExport}
-                        className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white transition-colors"
-                    >
-                        <Download className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                        Export Chats
-                    </button>
+                    {isSuperAdmin && (
+                        <button
+                            onClick={handleExport}
+                            className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        >
+                            <Download className="mr-3 w-5 h-5 text-gray-400 dark:text-gray-500" />
+                            Export Chats
+                        </button>
+                    )}
                     <div className="mt-2 flex justify-center">
                         <ThemeToggle />
                     </div>

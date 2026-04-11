@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, MessageSquare, ThumbsUp, ThumbsDown, Calendar, AlertCircle, Download } from 'lucide-react';
+import { Users, MessageSquare, ThumbsUp, ThumbsDown, Calendar, AlertCircle, Download, Target } from 'lucide-react';
 import { format as formatDate, parseISO } from 'date-fns';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Stats {
     totals: {
@@ -12,7 +12,7 @@ interface Stats {
         thumbsUp: number;
         thumbsDown: number;
     };
-    questionsTimeline: { _id: string; count: number }[];
+    questionsTimeline: { _id: string; count: number; thumbsUp?: number; thumbsDown?: number }[];
 }
 
 export function Dashboard() {
@@ -90,7 +90,14 @@ export function Dashboard() {
         </div>;
     }
 
-    const timelines = stats.questionsTimeline || [];
+    const timelines = (stats.questionsTimeline || []).map(t => ({
+        ...t,
+        csat: (t.thumbsUp || t.thumbsDown) ? Math.round(((t.thumbsUp || 0) / ((t.thumbsUp || 0) + (t.thumbsDown || 0))) * 100) : null
+    }));
+
+    const overallCsat = (stats.totals.thumbsUp || stats.totals.thumbsDown) 
+        ? ((stats.totals.thumbsUp / (stats.totals.thumbsUp + stats.totals.thumbsDown)) * 100).toFixed(1) 
+        : '0.0';
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -106,8 +113,9 @@ export function Dashboard() {
             </div>
 
             {/* Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                 {[
+                    { label: 'Overall CSAT', value: `${overallCsat}%`, icon: Target, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
                     { label: 'Total Users', value: stats.totals.users ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
                     { label: 'Conversations', value: stats.totals.conversations ?? 0, icon: MessageSquare, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
                     { label: 'Helpful', value: stats.totals.thumbsUp ?? 0, icon: ThumbsUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
@@ -124,10 +132,11 @@ export function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Questions Timeline */}
-                <div className="lg:col-span-2 bg-white dark:bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-lg font-bold flex items-center gap-2">
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Questions Timeline */}
+                    <div className="bg-white dark:bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-brand-primary" />
                             Questions Activity
                         </h2>
@@ -232,7 +241,70 @@ export function Dashboard() {
                     </div>
                 </div>
 
-                {/* Feedback Distribution */}
+                {/* CSAT Timeline */}
+                <div className="bg-white dark:bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                    <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+                        <Target className="w-5 h-5 text-amber-500" />
+                        CSAT Trend (%)
+                    </h2>
+                    <div className="h-48 mt-4">
+                        {timelines.length === 0 ? (
+                            <div className="flex-1 h-full flex items-center justify-center text-gray-400">No activity recorded yet.</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={timelines} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(156, 163, 175, 0.1)" />
+                                    <XAxis
+                                        dataKey="_id"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#9ca3af', fontSize: 10 }}
+                                        tickFormatter={(val) => {
+                                            if (!val) return '';
+                                            try {
+                                                const date = parseISO(val);
+                                                if (range === '24h') return formatDate(date, 'HH:00');
+                                                if (range === 'month') return formatDate(date, 'MMM yyyy');
+                                                return formatDate(date, 'MM/dd');
+                                            } catch {
+                                                return val;
+                                            }
+                                        }}
+                                        minTickGap={range === '24h' ? 20 : 30}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fill: '#9ca3af', fontSize: 10 }}
+                                        domain={[0, 'auto']}
+                                        allowDecimals={false}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', fontSize: '12px' }}
+                                        itemStyle={{ color: '#f59e0b', fontWeight: 'bold' }}
+                                        labelStyle={{ color: '#6b7280', marginBottom: '4px' }}
+                                        formatter={(value?: number) => [(value ?? 0) + '%', 'CSAT']}
+                                        labelFormatter={(label) => {
+                                            if (!label) return '';
+                                            try {
+                                                const date = parseISO(label);
+                                                if (range === '24h') return `Time: ${formatDate(date, 'PPP HH:00')}`;
+                                                if (range === 'month') return `Month: ${formatDate(date, 'MMMM yyyy')}`;
+                                                return `Date: ${formatDate(date, 'PPP')}`;
+                                            } catch {
+                                                return label;
+                                            }
+                                        }}
+                                    />
+                                    <Line type="monotone" dataKey="csat" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} animationDuration={1500} connectNulls={true} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Feedback Distribution */}
                 <div className="bg-white dark:bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col">
                     <h2 className="text-lg font-bold mb-6">Feedback Ratio</h2>
                     <div className="flex-1 flex flex-col justify-center">

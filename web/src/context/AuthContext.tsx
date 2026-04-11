@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 
 import axios from 'axios';
 
 interface User {
     email: string;
-    role: 'super_admin' | 'moderator';
+    role: 'super_admin' | 'moderator' | 'viewer';
 }
 
 interface AuthContextType {
@@ -15,6 +14,8 @@ interface AuthContextType {
     logout: () => void;
     isAuthenticated: boolean;
     isSuperAdmin: boolean;
+    isViewer: boolean;
+    isModerator: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,15 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const isSuperAdmin = user?.role === 'super_admin' || user?.email === 'nitinsankararunsankar@gmail.com';
+    const isViewer = user?.role === 'viewer';
+    const isModerator = user?.role === 'moderator';
 
-    // Check Google Client ID from environment variables
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
-
-    useEffect(() => {
-        if (!googleClientId || googleClientId === 'your-client-id.apps.googleusercontent.com') {
-            console.error('❌ CRITICAL ERROR: VITE_GOOGLE_CLIENT_ID is missing or using placeholder value in .env file!');
-        }
-    }, [googleClientId]);
 
     if (loading) {
         return (
@@ -74,11 +69,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return (
-        <GoogleOAuthProvider clientId={googleClientId}>
-            <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user, isSuperAdmin }}>
-                {children}
-            </AuthContext.Provider>
-        </GoogleOAuthProvider>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user, isSuperAdmin, isViewer, isModerator }}>
+            {children}
+        </AuthContext.Provider>
     );
 };
 

@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import type { Conversation } from '../types';
 
 export const KnowledgeCuration: React.FC = () => {
-    const [filter, setFilter] = useState<'all' | 'thumbsUp' | 'thumbsDown' | 'unanswered'>('all');
+    const [filter, setFilter] = useState<'all' | 'thumbsUp' | 'thumbsDown' | 'autoAnswered'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -69,7 +69,7 @@ export const KnowledgeCuration: React.FC = () => {
                             { id: 'all', label: 'All', icon: MessageSquare },
                             { id: 'thumbsUp', label: 'Helpful', icon: ThumbsUp, color: 'text-green-500' },
                             { id: 'thumbsDown', label: 'Needs Improvement', icon: ThumbsDown, color: 'text-red-500' },
-                            { id: 'unanswered', label: 'Unanswered', icon: AlertCircle, color: 'text-orange-500' }
+                            { id: 'autoAnswered', label: 'Auto-Answered', icon: CheckCircle, color: 'text-blue-500' }
                         ].map((tab) => (
                             <button
                                 key={tab.id}

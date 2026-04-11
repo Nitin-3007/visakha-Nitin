@@ -46,7 +46,7 @@ export const FAQPage = () => {
         try {
             // Using the generic DB endpoint for faqs collection
             // Increased limit to 200 to ensure all 98+ are visible for now
-            const response = await fetch('http://localhost:3000/admin/db/faqs?limit=200', {
+            const response = await fetch('/admin/db/faqs?limit=200', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -146,8 +146,8 @@ export const FAQPage = () => {
     const handleSave = async () => {
         try {
             const url = editingId
-                ? `http://localhost:3000/admin/db/faqs/${editingId}`
-                : `http://localhost:3000/admin/db/faqs`;
+                ? `/admin/db/faqs/${editingId}`
+                : `/admin/db/faqs`;
 
             const method = editingId ? 'PUT' : 'POST';
 
@@ -173,7 +173,7 @@ export const FAQPage = () => {
         if (!window.confirm('Are you sure you want to delete this FAQ?')) return;
 
         try {
-            const response = await fetch(`http://localhost:3000/admin/db/faqs/${id}`, {
+            const response = await fetch(`/admin/db/faqs/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -200,7 +200,7 @@ export const FAQPage = () => {
         setLoading(true);
         try {
             const text = await file.text();
-            const response = await fetch('http://localhost:3000/admin/db/faqs/bulk-replace', {
+            const response = await fetch('/admin/db/faqs/bulk-replace', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

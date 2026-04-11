@@ -1,0 +1,37 @@
+{
+  "_id": "69809c7f759f35a54c3031de",
+  "user": "6955671b12be5251d4ee7f2a",
+  "messageId": "d5937f24-c86b-45b5-812b-94dbda0fceca",
+  "__v": 0,
+  "_meiliIndex": false,
+  "attachments": [],
+  "content": [
+    {
+      "type": "think",
+      "think": "\nOkay, the user said \"hi\". Let me think about how to respond. Since I'm Sakha, the AI expert for VicharanaShala, I should greet them back and offer help. The user might be interested in the MERN Stack bootcamp or the NPTEL internship. I should keep it friendly and informative.\n\nI need to make sure my response is concise. Maybe start with a greeting, mention the bootcamp and internship, and ask how I can assist. No need to use any tools here because the user didn't ask a specific question. Just a simple, welcoming reply.\n"
+    },
+    {
+      "type": "text",
+      "text": "\n\nHello! I'm Sakha, here to help you with information about VicharanaShala's MERN Stack Bootcamp for NPTEL interns. How can I assist you today? 😊"
+    }
+  ],
+  "conversationId": "f3550a83-2302-41f1-a5b4-3ec26ba078c9",
+  "createdAt": "2026-02-02T12:45:51.691Z",
+  "endpoint": "vLLM",
+  "error": false,
+  "expiredAt": null,
+  "iconURL": "https://storage.googleapis.com/annam-temp-images/logo-vled.png",
+  "isCreatedByUser": false,
+  "model": "Qwen/Qwen3-30B-A3B",
+  "parentMessageId": "b98176ac-1306-4457-a833-197bfac4a662",
+  "sender": "Sakha",
+  "text": "",
+  "tokenCount": 43,
+  "unfinished": false,
+  "updatedAt": "2026-02-02T12:46:37.033Z",
+  "feedback": {
+    "rating": "thumbsDown",
+    "tag": "not_matched",
+    "_id": "69809cad3c35d917fec3c02d"
+  }
+}

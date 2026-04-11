@@ -3,16 +3,22 @@ import dotenv from "dotenv";
 dotenv.config();
 import { connectDB } from "./db.js";
 import path from "path";
+import { startAlertingService } from './alerts.js';
 import { fileURLToPath } from 'url';
 import {
   seedSuperAdmin,
   googleLogin,
   authenticateToken,
   requireSuperAdmin,
+  requireModeratorOrAdmin,
+  requireTeamAccess,
   addModerator,
   removeModerator,
+  revokeAccess,
   getModerators,
   devLogin,
+  verifyLoginLink,
+  checkVerificationStatus,
   type AuthRequest
 } from './auth.js';
 
@@ -65,10 +71,15 @@ app.get("/feedback-conversations", async (req: Request, res: Response) => {
 
     // 2. Filter by feedback type if requested
     if (filter !== 'all') {
-      const messageMatch: any = { feedback: { $exists: true } };
-      if (filter === 'thumbsUp') messageMatch["feedback.rating"] = "thumbsUp";
-      else if (filter === 'thumbsDown') messageMatch["feedback.rating"] = "thumbsDown";
-      else if (filter === 'unanswered') messageMatch["feedback.tag"] = "not_matched";
+      let messageMatch: any = {};
+      if (filter === 'thumbsUp') {
+        messageMatch = { feedback: { $exists: true }, "feedback.rating": "thumbsUp" };
+      } else if (filter === 'thumbsDown') {
+        messageMatch = { feedback: { $exists: true }, "feedback.rating": "thumbsDown" };
+      } else if (filter === 'autoAnswered') {
+        messageMatch["sender"] = { $ne: "User" };
+        messageMatch["feedback.tag"] = { $ne: "not_matched" };
+      }
 
       // If we haven't looked up messages yet (no search query), do it now
       if (!searchQuery) {
@@ -327,7 +338,7 @@ app.patch("/feedback-conversations/:conversationId/resolved", async (req: Reques
 
 
 // Endpoint to export all conversations as Markdown
-app.get("/conversations/export", async (req: Request, res: Response) => {
+app.get("/conversations/export", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
 
@@ -431,17 +442,20 @@ const PORT = Number(process.env.PORT) || 3000;
 // Auth Routes
 app.post("/auth/google", googleLogin);
 app.post("/auth/dev-login", devLogin);
+app.post("/auth/verify-link", verifyLoginLink);
+app.get("/auth/check-verification", checkVerificationStatus);
 
 // Admin Routes (Protected)
 app.post("/admin/moderators", authenticateToken, requireSuperAdmin, addModerator);
 app.delete("/admin/moderators", authenticateToken, requireSuperAdmin, removeModerator);
-app.get("/admin/moderators", authenticateToken, requireSuperAdmin, getModerators);
+app.patch("/admin/moderators/revoke", authenticateToken, requireSuperAdmin, revokeAccess);
+app.get("/admin/moderators", authenticateToken, requireTeamAccess, getModerators);
 
 // Knowledge Curation Routes
 
 // Knowledge Curation Routes
 // 1. Get Negative Feedback (The "Raw Data Dump" Source)
-app.get("/admin/feedback/negative", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.get("/admin/feedback/negative", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const page = parseInt(req.query.page as string) || 1;
@@ -491,7 +505,7 @@ app.get("/admin/feedback/negative", authenticateToken, requireSuperAdmin, async 
 
 // 2. Golden Knowledge CRUD (The "Golden DB")
 // Create/Promote to Golden DB
-app.post("/admin/knowledge", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.post("/admin/knowledge", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const { question, answer, tags, sourceMessageId } = req.body;
@@ -520,7 +534,7 @@ app.post("/admin/knowledge", authenticateToken, requireSuperAdmin, async (req: R
 });
 
 // List Golden Knowledge
-app.get("/admin/knowledge", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.get("/admin/knowledge", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     // Basic search if query param exists
@@ -543,7 +557,7 @@ app.get("/admin/knowledge", authenticateToken, requireSuperAdmin, async (req: Re
 });
 
 // Update Golden Knowledge
-app.put("/admin/knowledge/:id", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.put("/admin/knowledge/:id", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const { id } = req.params;
@@ -571,7 +585,7 @@ app.put("/admin/knowledge/:id", authenticateToken, requireSuperAdmin, async (req
 });
 
 // Delete Golden Knowledge
-app.delete("/admin/knowledge/:id", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.delete("/admin/knowledge/:id", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const { id } = req.params;
@@ -586,7 +600,7 @@ app.delete("/admin/knowledge/:id", authenticateToken, requireSuperAdmin, async (
 });
 
 // 3. RAG Synchronization (The "RAG DB")
-app.post("/admin/knowledge/sync", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.post("/admin/knowledge/sync", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
 
@@ -624,7 +638,7 @@ app.post("/admin/knowledge/sync", authenticateToken, requireSuperAdmin, async (r
 });
 
 // 4. RAG Search Test Endpoint
-app.get("/admin/knowledge/search", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.get("/admin/knowledge/search", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const { q } = req.query;
@@ -691,7 +705,7 @@ const padTimeline = (data: any[], start: Date, end: Date, rangeType: string, tz:
   }
   else current.setHours(0, 0, 0, 0);
 
-  const dataMap = new Map(data.map(item => [item._id, item.count]));
+  const dataMap = new Map(data.map(item => [item._id, item]));
 
   let iterations = 0;
   const MAX_ITERATIONS = 500;
@@ -701,9 +715,12 @@ const padTimeline = (data: any[], start: Date, end: Date, rangeType: string, tz:
   while (current <= end && iterations < MAX_ITERATIONS) {
     iterations++;
     const key = formatTimelineKey(current, rangeType, tz);
+    const itemData = dataMap.get(key) || { count: 0, thumbsUp: 0, thumbsDown: 0 };
     result.push({
       _id: key,
-      count: dataMap.get(key) || 0
+      count: itemData.count || 0,
+      thumbsUp: itemData.thumbsUp || 0,
+      thumbsDown: itemData.thumbsDown || 0
     });
 
     if (rangeType === '24h') current.setHours(current.getHours() + 1);
@@ -714,7 +731,7 @@ const padTimeline = (data: any[], start: Date, end: Date, rangeType: string, tz:
   return result;
 };
 
-app.get("/admin/stats", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.get("/admin/stats", authenticateToken, requireTeamAccess, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
 
@@ -754,7 +771,13 @@ app.get("/admin/stats", authenticateToken, requireSuperAdmin, async (req: Reques
       {
         $group: {
           _id: { $dateToString: { format: format, date: "$createdAt", timezone: timezone } },
-          count: { $sum: 1 }
+          count: { $sum: 1 },
+          thumbsUp: {
+            $sum: { $cond: [{ $eq: ["$feedback.rating", "thumbsUp"] }, 1, 0] }
+          },
+          thumbsDown: {
+            $sum: { $cond: [{ $eq: ["$feedback.rating", "thumbsDown"] }, 1, 0] }
+          }
         }
       },
       { $sort: { _id: 1 } }
@@ -779,7 +802,7 @@ app.get("/admin/stats", authenticateToken, requireSuperAdmin, async (req: Reques
 });
 
 // Export Stats to CSV
-app.get("/admin/stats/export", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.get("/admin/stats/export", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const range = req.query.range as string || '30d';
@@ -860,7 +883,7 @@ const validateCollection = (req: Request, res: Response, next: express.NextFunct
 };
 
 // Bulk Replace FAQs from Markdown
-app.post("/admin/db/faqs/bulk-replace", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+app.post("/admin/db/faqs/bulk-replace", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     const { markdown } = req.body;
@@ -881,7 +904,9 @@ app.post("/admin/db/faqs/bulk-replace", authenticateToken, requireSuperAdmin, as
 
       // Extract Keys/Tags and construct Answer
       for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const currentLine = lines[i];
+        if (currentLine === undefined) continue;
+        const line = currentLine.trim();
         const lowerLine = line.toLowerCase();
         
         if (lowerLine.startsWith('keys:') || lowerLine.startsWith('tags:')) {
@@ -889,7 +914,7 @@ app.post("/admin/db/faqs/bulk-replace", authenticateToken, requireSuperAdmin, as
            const keysString = line.substring(line.indexOf(':') + 1);
            keys = keysString.split(',').map(k => k.trim()).filter(k => k.length > 0);
         } else {
-           answerLines.push(lines[i]); // Keep original formatting
+           answerLines.push(currentLine); // Keep original formatting
         }
       }
 
@@ -920,7 +945,7 @@ app.post("/admin/db/faqs/bulk-replace", authenticateToken, requireSuperAdmin, as
 });
 
 // List documents
-app.get("/admin/db/:collection", authenticateToken, requireSuperAdmin, validateCollection, async (req: Request, res: Response) => {
+app.get("/admin/db/:collection", authenticateToken, requireModeratorOrAdmin, validateCollection, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     let collection = req.params.collection as string;
@@ -946,7 +971,7 @@ app.get("/admin/db/:collection", authenticateToken, requireSuperAdmin, validateC
 });
 
 // Create document
-app.post("/admin/db/:collection", authenticateToken, requireSuperAdmin, validateCollection, async (req: Request, res: Response) => {
+app.post("/admin/db/:collection", authenticateToken, requireModeratorOrAdmin, validateCollection, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     let collection = req.params.collection as string;
@@ -967,7 +992,7 @@ app.post("/admin/db/:collection", authenticateToken, requireSuperAdmin, validate
 });
 
 // Update document
-app.put("/admin/db/:collection/:id", authenticateToken, requireSuperAdmin, validateCollection, async (req: Request, res: Response) => {
+app.put("/admin/db/:collection/:id", authenticateToken, requireModeratorOrAdmin, validateCollection, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     let collection = req.params.collection as string;
@@ -1002,7 +1027,7 @@ app.put("/admin/db/:collection/:id", authenticateToken, requireSuperAdmin, valid
 });
 
 // Delete document
-app.delete("/admin/db/:collection/:id", authenticateToken, requireSuperAdmin, validateCollection, async (req: Request, res: Response) => {
+app.delete("/admin/db/:collection/:id", authenticateToken, requireModeratorOrAdmin, validateCollection, async (req: Request, res: Response) => {
   try {
     const db = await connectDB();
     let collection = req.params.collection as string;
@@ -1059,6 +1084,7 @@ app.listen(PORT, "0.0.0.0", async () => {
   try {
     await connectDB();
     await seedSuperAdmin();
+    startAlertingService();
     console.log("✅ Database connection established at startup");
   } catch (err) {
     console.error("❌ Failed to connect to database at startup:", err);
