@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { VerifyLogin } from './pages/VerifyLogin';
 import { TeamManagement } from './pages/TeamManagement';
 import { KnowledgeCuration } from './pages/KnowledgeCuration';
+import { PossibleQuestions } from './pages/PossibleQuestions';
 import { FAQPage } from './pages/FAQPage';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -28,6 +29,7 @@ function App() {
 
           <Route element={<ProtectedRoute requireModeratorOrAdmin={true} />}>
             <Route element={<Layout><KnowledgeCuration /></Layout>} path="/knowledge" />
+            <Route element={<Layout><PossibleQuestions /></Layout>} path="/possible-questions" />
             <Route element={<Layout><FAQPage /></Layout>} path="/faqs" />
           </Route>
 

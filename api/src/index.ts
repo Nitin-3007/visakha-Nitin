@@ -19,8 +19,10 @@ import {
   devLogin,
   verifyLoginLink,
   checkVerificationStatus,
+  toggleReportStatus,
   type AuthRequest
 } from './auth.js';
+import { startReportingService, generateDailyReport } from './reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +33,7 @@ const app: express.Application = express();
 app.use(express.json());
 import cors from 'cors';
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://100.100.108.44:5173'],
   credentials: true
 }));
 
@@ -449,7 +451,18 @@ app.get("/auth/check-verification", checkVerificationStatus);
 app.post("/admin/moderators", authenticateToken, requireSuperAdmin, addModerator);
 app.delete("/admin/moderators", authenticateToken, requireSuperAdmin, removeModerator);
 app.patch("/admin/moderators/revoke", authenticateToken, requireSuperAdmin, revokeAccess);
+app.patch("/admin/moderators/report-status", authenticateToken, requireSuperAdmin, toggleReportStatus);
 app.get("/admin/moderators", authenticateToken, requireTeamAccess, getModerators);
+
+// Report Trigger Route
+app.post("/admin/reports/trigger", authenticateToken, requireSuperAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await generateDailyReport();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
 
 // Knowledge Curation Routes
 
@@ -500,6 +513,83 @@ app.get("/admin/feedback/negative", authenticateToken, requireModeratorOrAdmin, 
   } catch (error) {
     console.error("Error fetching negative feedback:", error);
     res.status(500).json({ error: "Failed to fetch feedback" });
+  }
+});
+
+// Get Possible / Suggested Questions based on not_matched feedback
+app.get("/admin/possible-questions", authenticateToken, requireModeratorOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const db = await connectDB();
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const pipeline: any[] = [
+      // 1. Matches where Bot failed to match DB
+      { $match: { "feedback.tag": "not_matched" } },
+      // 2. Lookup corresponding user question
+      {
+        $lookup: {
+          from: "messages",
+          localField: "parentMessageId",
+          foreignField: "messageId",
+          as: "userMessage"
+        }
+      },
+      { $unwind: "$userMessage" },
+      // 3. Lookup conversation to check resolution status
+      {
+        $lookup: {
+          from: "conversations",
+          localField: "conversationId",
+          foreignField: "conversationId",
+          as: "conv"
+        }
+      },
+      { $unwind: { path: "$conv", preserveNullAndEmptyArrays: true } },
+      // 4. Exclude resolved conversations
+      { $match: { "conv.resolved": { $ne: true } } },
+      // 5. Group by exact text (lowercased) to detect duplicates
+      {
+        $group: {
+          _id: { $toLower: { $trim: { input: "$userMessage.text" } } },
+          count: { $sum: 1 },
+          originalText: { $first: "$userMessage.text" },
+          latestDate: { $max: "$createdAt" },
+          instances: {
+            $push: {
+              conversationId: "$conversationId",
+              userMessageId: "$userMessage.messageId",
+              createdAt: "$createdAt"
+            }
+          }
+        }
+      },
+      // 6. Sort heavily requested first
+      { $sort: { count: -1, latestDate: -1 } }
+    ];
+
+    // Pipeline for total unique questions count
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await db.collection("messages").aggregate(countPipeline).toArray();
+    const total = countResult[0]?.total || 0;
+
+    // Apply pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    const questions = await db.collection("messages").aggregate(pipeline).toArray();
+
+    res.json({
+      data: questions,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error("Error fetching possible questions:", error);
+    res.status(500).json({ error: "Failed to fetch possible questions" });
   }
 });
 
@@ -1085,6 +1175,7 @@ app.listen(PORT, "0.0.0.0", async () => {
     await connectDB();
     await seedSuperAdmin();
     startAlertingService();
+    startReportingService();
     console.log("✅ Database connection established at startup");
   } catch (err) {
     console.error("❌ Failed to connect to database at startup:", err);

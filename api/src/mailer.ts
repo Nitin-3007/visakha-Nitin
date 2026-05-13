@@ -117,3 +117,59 @@ export const sendSpikeAlertEmail = async (toEmail: string, count: number, timefr
         console.error('Error sending alert email:', error);
     }
 };
+
+export const sendDailyReportEmail = async (toEmails: string[], stats: any) => {
+    try {
+        if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+            console.warn('⚠️ SMTP credentials are not set. Skipping sending daily report email.');
+            return;
+        }
+
+        const mailOptions = {
+            from: process.env.SMTP_FROM || `"Alchemist Admin" <${process.env.SMTP_USER}>`,
+            to: toEmails.join(','),
+            subject: `Alchemist Daily Report - ${new Date().toLocaleDateString()}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto;">
+                    <h2 style="color: #4F46E5;">Alchemist Daily Insights</h2>
+                    <p>Here is your daily summary of ViSakha's performance over the last 24 hours.</p>
+                    
+                    <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0;">24-Hour Metrics</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;"><strong>New Conversations:</strong></td>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${stats.totalConversations}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;"><strong>New Messages:</strong></td>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${stats.totalMessages}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;"><strong>Positive Feedback (Thumbs Up):</strong></td>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #059669;">${stats.thumbsUp}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;"><strong>Negative Feedback (Thumbs Down):</strong></td>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; text-align: right; color: #DC2626;">${stats.thumbsDown}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0;"><strong>Unanswered Queries:</strong></td>
+                                <td style="padding: 8px 0; text-align: right; color: #D97706;">${stats.unansweredCount}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <p>Please log in to the Alchemist Dashboard for more detailed analytics.</p>
+                    <br/>
+                    <p>Best regards,<br/><strong>The Alchemist System</strong></p>
+                </div>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`Daily Report Email sent successfully to ${toEmails.length} recipients: ${info.messageId}`);
+    } catch (error) {
+        console.error('Error sending daily report email:', error);
+    }
+};

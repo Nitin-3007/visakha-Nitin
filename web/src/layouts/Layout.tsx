@@ -5,7 +5,8 @@ import {
     Users,
     Download,
     HelpCircle,
-    BookOpen
+    BookOpen,
+    FileQuestion
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx } from 'clsx';
@@ -29,6 +30,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         { name: 'Team', href: '/team', icon: Users },
         ...(!isViewer ? [
             { name: 'Knowledge', href: '/knowledge', icon: BookOpen },
+            { name: 'Possible Q\'s', href: '/possible-questions', icon: FileQuestion },
             { name: 'FAQs', href: '/faqs', icon: HelpCircle }
         ] : [])
     ];

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Users, MessageSquare, ThumbsUp, ThumbsDown, Calendar, AlertCircle, Download, Target } from 'lucide-react';
+import { Users, MessageSquare, ThumbsUp, ThumbsDown, Calendar, AlertCircle, Download, Target, Send, FileText } from 'lucide-react';
 import { format as formatDate, parseISO } from 'date-fns';
 import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 interface Stats {
     totals: {
         users: number;
@@ -18,7 +19,10 @@ interface Stats {
 export function Dashboard() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [sendingReport, setSendingReport] = useState(false);
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [range, setRange] = useState<'24h' | '30d' | 'month'>('30d');
+    const dashboardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const fetchStats = async (isBackground = false) => {
@@ -43,6 +47,52 @@ export function Dashboard() {
 
         return () => clearInterval(interval);
     }, [range]);
+
+    const handleSendReport = async () => {
+        setSendingReport(true);
+        try {
+            const res = await axios.post('/admin/reports/trigger');
+            alert(`Report dispatched via email to ${res.data.designatedMembersCount} designated member(s)!`);
+        } catch (err: any) {
+            console.error(err);
+            alert(err.response?.data?.error || 'Failed to trigger report');
+        } finally {
+            setSendingReport(false);
+        }
+    };
+
+    const handleExportPDF = async () => {
+        if (!dashboardRef.current) return;
+        
+        setIsExportingPDF(true);
+        try {
+            // Find appropriate background color depending on dark mode
+            const bgColor = document.documentElement.classList.contains('dark') ? '#0b0c10' : '#f9fafb';
+            
+            const canvas = await html2canvas(dashboardRef.current, {
+                scale: 2, // High resolution
+                useCORS: true,
+                logging: false,
+                backgroundColor: bgColor
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            // Produce landscape PDF with exact dimensions of the dashboard snapshot
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`dashboard_report_${range}_${formatDate(new Date(), 'yyyy-MM-dd')}.pdf`);
+        } catch (err: any) {
+            console.error("Failed to generate PDF", err);
+            alert("Failed to export as PDF. Please check the console for details.");
+        } finally {
+            setIsExportingPDF(false);
+        }
+    };
 
     const handleExport = async () => {
         try {
@@ -100,15 +150,25 @@ export function Dashboard() {
         : '0.0';
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+        <div ref={dashboardRef} className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 bg-gray-50 dark:bg-[#0b0c10]">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Dashboard</h1>
                     <p className="text-gray-500 dark:text-gray-400">Overview of system activity and user feedback.</p>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700/50 self-start md:self-auto">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    Auto-refreshing every 3m
+                <div className="flex flex-col items-end gap-2 text-xs font-medium self-start md:self-auto">
+                    <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700/50">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                        Auto-refreshing every 3m
+                    </div>
+                    <button 
+                        onClick={handleSendReport}
+                        disabled={sendingReport}
+                        className="flex items-center gap-1.5 px-3 py-1.5 font-semibold text-brand-primary bg-brand-primary/10 hover:bg-brand-primary/20 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                        <Send size={14} />
+                        {sendingReport ? 'Generating & Sending...' : 'Dispatch Report Now'}
+                    </button>
                 </div>
             </div>
 
@@ -148,6 +208,15 @@ export function Dashboard() {
                             >
                                 <Download className="w-3.5 h-3.5" />
                                 Export CSV
+                            </button>
+                            <button
+                                onClick={handleExportPDF}
+                                disabled={isExportingPDF}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand-primary border border-brand-primary rounded-lg hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50"
+                                title="Export graphical dashboard report to PDF"
+                            >
+                                <FileText className="w-3.5 h-3.5" />
+                                {isExportingPDF ? 'Exporting...' : 'Export PDF'}
                             </button>
                             <div className="flex bg-gray-100 dark:bg-gray-800/50 p-1 rounded-lg shadow-inner">
                                 {(['24h', '30d', 'month'] as const).map((r) => (
