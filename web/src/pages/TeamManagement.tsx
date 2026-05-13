@@ -8,6 +8,7 @@ interface TeamMember {
     email: string;
     role: 'moderator' | 'super_admin' | 'viewer' | 'revoked';
     addedBy?: string;
+    receiveDailyReport?: boolean;
     createdAt: string;
 }
 
@@ -92,6 +93,18 @@ export const TeamManagement: React.FC = () => {
         }
     };
 
+    const handleToggleReport = async (email: string, currentStatus: boolean) => {
+        try {
+            await axios.patch('/admin/moderators/report-status', { 
+                email, 
+                receiveDailyReport: !currentStatus 
+            });
+            fetchMembers();
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Failed to toggle report status');
+        }
+    };
+
     if (loading) return <div className="p-8">Loading team data...</div>;
 
     return (
@@ -151,6 +164,7 @@ export const TeamManagement: React.FC = () => {
                                     <th className="px-6 py-3">Email</th>
                                     <th className="px-6 py-3">Role</th>
                                     <th className="px-6 py-3">Added By</th>
+                                    <th className="px-6 py-3 text-center">Daily Report</th>
                                     <th className="px-6 py-3">Date Added</th>
                                     {isSuperAdmin && <th className="px-6 py-3 text-right">Actions</th>}
                                 </tr>
@@ -180,6 +194,18 @@ export const TeamManagement: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{member.addedBy || 'System'}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer" 
+                                                    checked={!!member.receiveDailyReport}
+                                                    onChange={() => handleToggleReport(member.email, !!member.receiveDailyReport)}
+                                                    disabled={!isSuperAdmin}
+                                                />
+                                                <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-brand-primary"></div>
+                                            </label>
+                                        </td>
                                         <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                             {new Date(member.createdAt).toLocaleDateString()}
                                         </td>

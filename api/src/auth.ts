@@ -341,3 +341,26 @@ export async function revokeAccess(req: AuthRequest, res: Response) {
         res.status(500).json({ error: 'Failed to revoke access' });
     }
 }
+
+// Toggle Receive Daily Report
+export async function toggleReportStatus(req: AuthRequest, res: Response) {
+    const { email, receiveDailyReport } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+
+    try {
+        const db = await connectDB();
+        const user = await db.collection('admin_users').findOne({ email });
+        
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        await db.collection('admin_users').updateOne(
+            { email },
+            { $set: { receiveDailyReport: Boolean(receiveDailyReport), updatedAt: new Date() } }
+        );
+
+        res.json({ success: true, receiveDailyReport: Boolean(receiveDailyReport) });
+    } catch (err) {
+        console.error('Toggle Report Status Error:', err);
+        res.status(500).json({ error: 'Failed to toggle report status' });
+    }
+}

@@ -1,0 +1,311 @@
+openapi: 3.0.0
+info:
+  title: Visakha Alchemist API
+  description: API documentation for the Visakha Alchemist Backend
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.yourdomain.com
+    description: Production server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API
+      security: []
+      responses:
+        '200':
+          description: OK
+          
+  /auth/google:
+    post:
+      summary: Google Login
+      description: Authenticate using Google OAuth
+      security: []
+      responses:
+        '200':
+          description: Successful login
+          
+  /auth/dev-login:
+    post:
+      summary: Development Login
+      description: Login for development purposes
+      security: []
+      responses:
+        '200':
+          description: Successful login
+          
+  /auth/verify-link:
+    post:
+      summary: Verify Magic Link
+      description: Verify login link sent via email
+      security: []
+      responses:
+        '200':
+          description: Verification successful
+          
+  /auth/check-verification:
+    get:
+      summary: Check Verification Status
+      description: Check if the current user is verified
+      responses:
+        '200':
+          description: Status retrieved successfully
+
+  /feedback-conversations:
+    get:
+      summary: Get Feedback Conversations
+      description: Retrieve a list of feedback conversations
+      responses:
+        '200':
+          description: A list of conversations
+          
+  /feedback-conversations/{conversationId}:
+    get:
+      summary: Get Conversation by ID
+      description: Retrieve a specific feedback conversation
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation details
+          
+  /feedback-conversations/{conversationId}/resolved:
+    patch:
+      summary: Mark Conversation as Resolved
+      description: Update the status of a conversation to resolved
+      parameters:
+        - in: path
+          name: conversationId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation updated successfully
+          
+  /conversations/export:
+    get:
+      summary: Export Conversations
+      description: Export conversations data (Super Admin only)
+      responses:
+        '200':
+          description: Export successful
+
+  /admin/moderators:
+    get:
+      summary: Get Moderators
+      description: Retrieve a list of moderators (Team Access required)
+      responses:
+        '200':
+          description: List of moderators
+    post:
+      summary: Add Moderator
+      description: Add a new moderator (Super Admin only)
+      responses:
+        '200':
+          description: Moderator added
+    delete:
+      summary: Remove Moderator
+      description: Remove an existing moderator (Super Admin only)
+      responses:
+        '200':
+          description: Moderator removed
+
+  /admin/moderators/revoke:
+    patch:
+      summary: Revoke Access
+      description: Revoke a moderator's access (Super Admin only)
+      responses:
+        '200':
+          description: Access revoked
+
+  /admin/moderators/report-status:
+    patch:
+      summary: Toggle Report Status
+      description: Toggle the report receiving status for a moderator (Super Admin only)
+      responses:
+        '200':
+          description: Status updated
+
+  /admin/reports/trigger:
+    post:
+      summary: Trigger Report
+      description: Manually trigger a daily or weekly report (Super Admin only)
+      responses:
+        '200':
+          description: Report triggered
+
+  /admin/feedback/negative:
+    get:
+      summary: Get Negative Feedback
+      description: Retrieve a list of negative feedback items (Moderator/Admin only)
+      responses:
+        '200':
+          description: List of negative feedback
+
+  /admin/possible-questions:
+    get:
+      summary: Get Possible Questions
+      description: Retrieve questions identified by the AI for the knowledge base (Moderator/Admin only)
+      responses:
+        '200':
+          description: List of possible questions
+
+  /admin/knowledge:
+    get:
+      summary: Get Knowledge Base
+      description: Retrieve knowledge base articles (Moderator/Admin only)
+      responses:
+        '200':
+          description: List of knowledge base items
+    post:
+      summary: Create Knowledge Item
+      description: Add a new item to the knowledge base (Moderator/Admin only)
+      responses:
+        '200':
+          description: Item created
+
+  /admin/knowledge/{id}:
+    put:
+      summary: Update Knowledge Item
+      description: Update an existing knowledge base item (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item updated
+    delete:
+      summary: Delete Knowledge Item
+      description: Delete a knowledge base item (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item deleted
+
+  /admin/knowledge/sync:
+    post:
+      summary: Sync Knowledge Base
+      description: Sync the knowledge base with an external source or database (Moderator/Admin only)
+      responses:
+        '200':
+          description: Sync successful
+
+  /admin/knowledge/search:
+    get:
+      summary: Search Knowledge Base
+      description: Search for items within the knowledge base (Moderator/Admin only)
+      responses:
+        '200':
+          description: Search results
+
+  /admin/stats:
+    get:
+      summary: Get Dashboard Stats
+      description: Retrieve statistics for the dashboard (Team Access required)
+      responses:
+        '200':
+          description: Statistics data
+
+  /admin/stats/export:
+    get:
+      summary: Export Stats
+      description: Export dashboard statistics data (Moderator/Admin only)
+      responses:
+        '200':
+          description: Export successful
+
+  /admin/db/faqs/bulk-replace:
+    post:
+      summary: Bulk Replace FAQs
+      description: Replace multiple FAQs in bulk (Moderator/Admin only)
+      responses:
+        '200':
+          description: Bulk replace successful
+
+  /admin/db/{collection}:
+    get:
+      summary: Get DB Collection
+      description: Retrieve documents from a specified collection (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: collection
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Collection data
+    post:
+      summary: Add to DB Collection
+      description: Add a document to a specified collection (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: collection
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document added
+
+  /admin/db/{collection}/{id}:
+    put:
+      summary: Update DB Document
+      description: Update a document in a specified collection (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: collection
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document updated
+    delete:
+      summary: Delete DB Document
+      description: Delete a document from a specified collection (Moderator/Admin only)
+      parameters:
+        - in: path
+          name: collection
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document deleted
